@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 void main() {
   runApp(CalculatorApp());
 }
+
 class CalculatorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -12,7 +13,151 @@ class CalculatorApp extends StatelessWidget {
     );
   }
 }
-class CalculatorUI extends StatelessWidget {
+
+class CalculatorLogic {
+  String _displayValue = '0';
+  String _operator = '';
+  double? _firstOperand;
+  bool _isOperatorPressed = false;
+  bool _resultDisplayed = false;
+
+  String get displayValue => _displayValue;
+
+  void input(String userInput) {
+    if (userInput == 'AC') {
+      _clear();
+      return;
+    }
+
+    if (_resultDisplayed) {
+      if (['+', '-', '×', '÷'].contains(userInput)) {
+        _operator = userInput;
+        _firstOperand = double.tryParse(_displayValue);
+        _isOperatorPressed = true;
+        _resultDisplayed = false;
+      } else {
+        _clear();
+        input(userInput);
+      }
+      return;
+    }
+
+    if (userInput == '+/-') {
+      if (_displayValue != '0') {
+        _displayValue = _displayValue.startsWith('-')
+            ? _displayValue.substring(1)
+            : '-$_displayValue';
+      }
+      return;
+    }
+
+    if (userInput == '%') {
+      if (_firstOperand != null && _operator.isNotEmpty) {
+        double secondOperand = double.tryParse(_displayValue) ?? 0.0;
+        _displayValue = (_firstOperand! * secondOperand / 100).toString();
+      } else {
+        double currentValue = double.tryParse(_displayValue) ?? 0.0;
+        _displayValue = (currentValue / 100).toString();
+      }
+      if (_displayValue.endsWith('.0')) {
+        _displayValue = _displayValue.substring(0, _displayValue.length - 2);
+      }
+      return;
+    }
+
+    if (['+', '-', '×', '÷'].contains(userInput)) {
+      if (!_isOperatorPressed) {
+        _operator = userInput;
+        _firstOperand = double.tryParse(_displayValue);
+        _isOperatorPressed = true;
+      } else {
+        _operator = userInput;
+      }
+      return;
+    }
+
+    if (userInput == '=') {
+      double? secondOperand = double.tryParse(_displayValue);
+      if (_firstOperand != null && secondOperand != null) {
+        _calculate(secondOperand);
+      }
+      _isOperatorPressed = false;
+      _resultDisplayed = true;
+      return;
+    }
+
+    if (_isOperatorPressed) {
+      _displayValue = userInput == ',' ? '0.' : userInput;
+      _isOperatorPressed = false;
+    } else {
+      if (userInput == ',') {
+        if (!_displayValue.contains('.')) {
+          _displayValue += '.';
+        }
+      } else {
+        _displayValue =
+            _displayValue == '0' ? userInput : _displayValue + userInput;
+      }
+    }
+  }
+
+  void _calculate(double secondOperand) {
+    double result = 0.0;
+
+    switch (_operator) {
+      case '+':
+        result = _firstOperand! + secondOperand;
+        break;
+      case '-':
+        result = _firstOperand! - secondOperand;
+        break;
+      case '×':
+        result = _firstOperand! * secondOperand;
+        break;
+      case '÷':
+        if (secondOperand != 0) {
+          result = _firstOperand! / secondOperand;
+        } else {
+          _displayValue = 'Error';
+          return;
+        }
+        break;
+    }
+
+    _displayValue = result.toStringAsFixed(12);
+    _displayValue = _displayValue.replaceAll(RegExp(r'0+$'), '');
+    if (_displayValue.endsWith('.')) {
+      _displayValue = _displayValue.substring(0, _displayValue.length - 1);
+    }
+
+    _firstOperand = null;
+    _operator = '';
+  }
+
+  void _clear() {
+    _displayValue = '0';
+    _firstOperand = null;
+    _operator = '';
+    _isOperatorPressed = false;
+    _resultDisplayed = false;
+  }
+}
+
+class CalculatorUI extends StatefulWidget {
+  @override
+  _CalculatorUIState createState() => _CalculatorUIState();
+}
+
+class _CalculatorUIState extends State<CalculatorUI> {
+  final CalculatorLogic _logic = CalculatorLogic();
+
+  void _onButtonPressed(String input) {
+    setState(() {
+      _logic.input(input);
+    });
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,19 +165,25 @@ class CalculatorUI extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Display (ekran)
+            // Displey
             Expanded(
               flex: 2,
               child: Container(
                 color: Colors.grey[850],
                 padding: EdgeInsets.symmetric(horizontal: 36),
                 alignment: Alignment.centerRight,
-                child: Text(
-                  "0",
-                  style: TextStyle(
-                    fontSize: 90,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w300,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _logic.displayValue,
+                    style: TextStyle(
+                      fontSize: 90,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w300,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -42,11 +193,16 @@ class CalculatorUI extends StatelessWidget {
               flex: 5,
               child: Column(
                 children: [
-                  buildButtonRow(["AC", "+/-", "%", "÷"], Colors.grey[800]!, Colors.orange),
-                  buildButtonRow(["7", "8", "9", "×"], Colors.grey[700]!, Colors.orange),
-                  buildButtonRow(["4", "5", "6", "-"], Colors.grey[700]!, Colors.orange),
-                  buildButtonRow(["1", "2", "3", "+"], Colors.grey[700]!, Colors.orange),
-                  buildLastButtonRow(["0", ",", "="], Colors.grey[700]!, Colors.orange),
+                  buildButtonRow(["AC", "+/-", "%", "÷"], Colors.grey[800]!,
+                      Colors.orange),
+                  buildButtonRow(
+                      ["7", "8", "9", "×"], Colors.grey[700]!, Colors.orange),
+                  buildButtonRow(
+                      ["4", "5", "6", "-"], Colors.grey[700]!, Colors.orange),
+                  buildButtonRow(
+                      ["1", "2", "3", "+"], Colors.grey[700]!, Colors.orange),
+                  buildLastButtonRow(
+                      ["0", ",", "="], Colors.grey[700]!, Colors.orange),
                 ],
               ),
             ),
@@ -55,6 +211,7 @@ class CalculatorUI extends StatelessWidget {
       ),
     );
   }
+
   Widget buildButtonRow(List<String> texts, Color bgColor, Color operatorColor) {
     return Expanded(
       child: Row(
@@ -71,6 +228,7 @@ class CalculatorUI extends StatelessWidget {
       ),
     );
   }
+
   Widget buildLastButtonRow(List<String> texts, Color bgColor, Color operatorColor) {
     return Expanded(
       child: Row(
@@ -103,20 +261,21 @@ class CalculatorUI extends StatelessWidget {
       ),
     );
   }
+
   Widget buildButton({
     required String text,
     required Color bgColor,
     required Color textColor,
   }) {
     return Container(
-      margin: EdgeInsets.all(0.5), // Buttonlar orasidagi masoda margin berilgan
+      margin: EdgeInsets.all(0.5),
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () => _onButtonPressed(text),
         style: ElevatedButton.styleFrom(
           backgroundColor: bgColor,
           shape: RoundedRectangleBorder(),
           padding: EdgeInsets.zero,
-          elevation: 0, // Buttonlar hammasi tekkis bo'lishi uchun
+          elevation: 0,
         ),
         child: Center(
           child: Text(
